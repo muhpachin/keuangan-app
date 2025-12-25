@@ -178,11 +178,19 @@ class AuthController extends Controller
 
     // --- GOOGLE LOGIN ---
     public function redirectToGoogle() {
+        if (!class_exists(\Laravel\Socialite\Facades\Socialite::class)) {
+            return redirect()->route('login')->with('error', 'Google login tidak tersedia.');
+        }
+
         return Socialite::driver('google')->redirect();
     }
 
     public function handleGoogleCallback()
     {
+        if (!class_exists(\Laravel\Socialite\Facades\Socialite::class)) {
+            return redirect()->route('login')->with('error', 'Google login tidak tersedia.');
+        }
+
         try {
             $googleUser = Socialite::driver('google')->user();
 
