@@ -24,6 +24,8 @@ Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbac
 // Lupa / Reset Password
 Route::get('/password/forgot', [AuthController::class, 'showForgotForm'])->name('password.request');
 Route::post('/password/forgot', [AuthController::class, 'sendResetLink'])->name('password.email');
+// Verify security question answer and reset password
+Route::post('/password/answer', [AuthController::class, 'verifySecurityAnswer'])->name('password.answer');
 Route::get('/password/reset/{token}', [AuthController::class, 'showResetForm'])->name('password.reset');
 Route::post('/password/reset', [AuthController::class, 'resetPassword'])->name('password.update');
 

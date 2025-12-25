@@ -6,9 +6,6 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
-use Carbon\Carbon;
 use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
@@ -24,7 +21,7 @@ class AuthController extends Controller
         return view('auth.forgot');
     }
 
-    // Proses kirim link/ token reset
+    // Proses kirim (tampilkan) pertanyaan keamanan
     public function sendResetLink(Request $request)
     {
         $request->validate([
@@ -40,26 +37,36 @@ class AuthController extends Controller
             return back()->with('error', 'User tidak ditemukan.');
         }
 
-        // Generate raw token for email, store only hashed token in DB
-        $rawToken = Str::random(64);
-        $user->reset_token = Hash::make($rawToken);
-        $user->reset_token_expiry = Carbon::now()->addHour();
+        if (!$user->security_question) {
+            return back()->with('error', 'Akun tidak memiliki pertanyaan keamanan terdaftar.');
+        }
+
+        return view('auth.forgot_question', ['user' => $user]);
+    }
+
+    // Verifikasi jawaban keamanan dan reset password
+    public function verifySecurityAnswer(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|integer',
+            'security_answer' => 'required|string',
+            'password' => 'required|min:6|confirmed',
+        ]);
+
+        $user = User::find($request->user_id);
+        if (!$user) {
+            return back()->with('error', 'User tidak ditemukan.');
+        }
+
+        $given = strtolower(trim($request->security_answer));
+        if (!Hash::check($given, $user->security_answer)) {
+            return back()->with('error', 'Jawaban keamanan salah.');
+        }
+
+        $user->password = Hash::make($request->password);
         $user->save();
 
-        if ($user->email) {
-            try {
-                Mail::send('emails.reset', ['token' => $rawToken, 'user' => $user], function ($m) use ($user) {
-                    $m->to($user->email)->subject('Reset Password');
-                });
-            } catch (\Exception $e) {
-                // Jika mail gagal, tampilkan token agar user tetap bisa reset secara manual
-                return back()->with('warning', 'Gagal mengirim email. Gunakan token berikut untuk mereset: ' . $rawToken);
-            }
-
-            return back()->with('success', 'Link reset password telah dikirim ke email Anda jika tersedia.');
-        }
-        // Jika tidak ada email, tampilkan token agar user dapat menggunakan link manual
-        return back()->with('warning', 'Akun tidak memiliki email. Gunakan token berikut untuk mereset password: ' . $rawToken);
+        return redirect()->route('login')->with('success', 'Password berhasil diubah. Silakan login.');
     }
 
     // Tampilkan form reset password (menggunakan token)
