@@ -22,9 +22,10 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
 // Lupa / Reset Password
-Route::get('/password/forgot', [AuthController::class, 'showForgotForm'])->name('password.request');
-Route::post('/password/forgot', [AuthController::class, 'sendResetLink'])->name('password.email');
-Route::get('/password/reset/{token}', [AuthController::class, 'showResetForm'])->name('password.reset');
+Route::get('/password/forgot', [AuthController::class, 'showForgotPassword'])->name('password.request');
+Route::post('/password/forgot', [AuthController::class, 'sendSecurityQuestion'])->name('password.email');
+Route::post('/password/verify', [AuthController::class, 'verifySecurityAnswer'])->name('password.verify');
+Route::get('/password/reset', [AuthController::class, 'showResetForm'])->name('password.reset.form');
 Route::post('/password/reset', [AuthController::class, 'resetPassword'])->name('password.update');
 
 // DASHBOARD & FITUR (Harus Login)

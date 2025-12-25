@@ -1,8 +1,7 @@
-@extends('layouts.app')
+@extends('layouts.auth.forgot')
 
 @section('content')
-<div class="container">
-    <h2>Reset Password</h2>
+    <h2 class="text-center mb-4">Reset Password</h2>
 
     @if(session('error'))
         <div class="alert alert-danger">{{ session('error') }}</div>
@@ -10,7 +9,6 @@
 
     <form method="POST" action="{{ route('password.update') }}">
         @csrf
-        <input type="hidden" name="token" value="{{ $token }}">
 
         <div class="mb-3">
             <label for="password" class="form-label">Password Baru</label>
@@ -23,7 +21,6 @@
             <input id="password_confirmation" name="password_confirmation" type="password" class="form-control" required>
         </div>
 
-        <button class="btn btn-primary">Reset Password</button>
+        <button class="btn btn-primary w-100">Reset Password</button>
     </form>
-</div>
 @endsection
