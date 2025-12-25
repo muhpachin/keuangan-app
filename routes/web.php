@@ -58,4 +58,12 @@ Route::prefix('admin')->middleware(['auth','is_admin'])->group(function () {
     Route::get('/users/{user}', [App\Http\Controllers\AdminController::class, 'usersShow'])->name('admin.users.show');
     Route::post('/users/{user}/ban', [App\Http\Controllers\AdminController::class, 'ban'])->name('admin.users.ban');
     Route::post('/users/{user}/reset-password', [App\Http\Controllers\AdminController::class, 'resetPassword'])->name('admin.users.reset_password');
+
+    // Default Categories CRUD
+    Route::get('/default-categories', [App\Http\Controllers\Admin\DefaultCategoryController::class, 'index'])->name('admin.default_categories.index');
+    Route::get('/default-categories/create', [App\Http\Controllers\Admin\DefaultCategoryController::class, 'create'])->name('admin.default_categories.create');
+    Route::post('/default-categories', [App\Http\Controllers\Admin\DefaultCategoryController::class, 'store'])->name('admin.default_categories.store');
+    Route::get('/default-categories/{defaultCategory}/edit', [App\Http\Controllers\Admin\DefaultCategoryController::class, 'edit'])->name('admin.default_categories.edit');
+    Route::put('/default-categories/{defaultCategory}', [App\Http\Controllers\Admin\DefaultCategoryController::class, 'update'])->name('admin.default_categories.update');
+    Route::delete('/default-categories/{defaultCategory}', [App\Http\Controllers\Admin\DefaultCategoryController::class, 'destroy'])->name('admin.default_categories.destroy');
 });

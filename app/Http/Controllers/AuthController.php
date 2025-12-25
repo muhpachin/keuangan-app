@@ -144,7 +144,7 @@ class AuthController extends Controller
         ]);
 
         // 2. Simpan ke Database
-        User::create([
+        $user = User::create([
             'username' => $request->username, // Pakai username
             // 'name' => $request->name, <--- BARIS INI SUDAH DIHAPUS AGAR TIDAK ERROR
             'password' => Hash::make($request->password),
@@ -153,6 +153,21 @@ class AuthController extends Controller
             'security_answer' => Hash::make(strtolower(trim($request->security_answer))),
             'tipe_akun' => 'gratis', // Set default tipe akun
         ]);
+
+        // Seed default categories for this user
+        if (class_exists(\App\Models\DefaultCategory::class)) {
+            $defaults = \App\Models\DefaultCategory::all();
+            foreach ($defaults as $d) {
+                // The application likely has a Kategori or KategoriPengeluaran model - attempt to create user categories
+                if (class_exists(\App\Models\Kategori::class)) {
+                    \App\Models\Kategori::create([
+                        'user_id' => $user->id,
+                        'name' => $d->name,
+                        'type' => $d->type,
+                    ]);
+                }
+            }
+        }
 
         // Setelah registrasi berhasil, arahkan ke halaman login dengan pemberitahuan sukses
         return redirect()->route('login')->with('success', 'Akun berhasil dibuat. Silakan login.');
