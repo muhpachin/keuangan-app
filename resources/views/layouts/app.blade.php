@@ -49,7 +49,7 @@
             <a href="{{ route('pengeluaran.index') }}" class="{{ request()->routeIs('pengeluaran.*') ? 'active' : '' }}">Pengeluaran</a>
             <a href="{{ route('transfer.index') }}" class="{{ request()->routeIs('transfer.*') ? 'active' : '' }}">Transfer</a>
             <a href="{{ route('utang.index') }}" class="{{ request()->routeIs('utang.*') ? 'active' : '' }}">Utang</a>
-            <a href="#">Laporan</a>
+            <a href="{{ route('laporan.index') }}" class="{{ request()->routeIs('laporan.*') ? 'active' : '' }}">Laporan</a>
             
             <form action="{{ route('logout') }}" method="POST" id="logout-form">
                 @csrf
