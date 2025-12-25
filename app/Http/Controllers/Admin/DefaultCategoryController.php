@@ -22,7 +22,12 @@ class DefaultCategoryController extends Controller
     public function store(Request $request)
     {
         $request->validate(['name' => 'required|string|max:191', 'type' => 'required|in:pemasukan,pengeluaran']);
-        DefaultCategory::create($request->only('name','type'));
+        $cat = DefaultCategory::create($request->only('name','type'));
+
+        if (class_exists(\App\Helpers\ActivityLogger::class)) {
+            \App\Helpers\ActivityLogger::log(auth()->id() ?? null, 'default_category.create', $cat, 'Admin created default category');
+        }
+
         return redirect()->route('admin.default_categories.index')->with('success','Kategori default dibuat.');
     }
 
@@ -35,11 +40,20 @@ class DefaultCategoryController extends Controller
     {
         $request->validate(['name' => 'required|string|max:191','type' => 'required|in:pemasukan,pengeluaran']);
         $defaultCategory->update($request->only('name','type'));
+
+        if (class_exists(\App\Helpers\ActivityLogger::class)) {
+            \App\Helpers\ActivityLogger::log(auth()->id() ?? null, 'default_category.update', $defaultCategory, 'Admin updated default category');
+        }
+
         return redirect()->route('admin.default_categories.index')->with('success','Kategori default diperbarui.');
     }
 
     public function destroy(DefaultCategory $defaultCategory)
     {
+        if (class_exists(\App\Helpers\ActivityLogger::class)) {
+            \App\Helpers\ActivityLogger::log(auth()->id() ?? null, 'default_category.delete', $defaultCategory, 'Admin deleted default category');
+        }
+
         $defaultCategory->delete();
         return back()->with('success','Kategori default dihapus.');
     }

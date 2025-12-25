@@ -63,6 +63,12 @@ class AdminController extends Controller
     {
         $user->is_banned = !$user->is_banned;
         $user->save();
+
+        // Log activity
+        if (class_exists(\App\Helpers\ActivityLogger::class)) {
+            \App\Helpers\ActivityLogger::log(auth()->id() ?? null, $user->is_banned ? 'user.ban' : 'user.unban', $user, 'Admin toggled ban status for user');
+        }
+
         return back()->with('success', $user->is_banned ? 'User diblokir.' : 'User dibuka blokir.');
     }
 
@@ -71,6 +77,12 @@ class AdminController extends Controller
         $temp = 'Reset1234';
         $user->password = \Illuminate\Support\Facades\Hash::make($temp);
         $user->save();
+
+        // Log activity
+        if (class_exists(\App\Helpers\ActivityLogger::class)) {
+            \App\Helpers\ActivityLogger::log(auth()->id() ?? null, 'user.reset_password', $user, 'Admin reset password for user');
+        }
+
         // Optionally: mail user the temporary password or log activity
         return back()->with('success', 'Password direset ke: ' . $temp);
     }

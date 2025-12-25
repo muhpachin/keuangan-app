@@ -66,4 +66,7 @@ Route::prefix('admin')->middleware(['auth','is_admin'])->group(function () {
     Route::get('/default-categories/{defaultCategory}/edit', [App\Http\Controllers\Admin\DefaultCategoryController::class, 'edit'])->name('admin.default_categories.edit');
     Route::put('/default-categories/{defaultCategory}', [App\Http\Controllers\Admin\DefaultCategoryController::class, 'update'])->name('admin.default_categories.update');
     Route::delete('/default-categories/{defaultCategory}', [App\Http\Controllers\Admin\DefaultCategoryController::class, 'destroy'])->name('admin.default_categories.destroy');
+
+    // Activity Logs
+    Route::get('/logs', [App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('admin.logs.index');
 });
