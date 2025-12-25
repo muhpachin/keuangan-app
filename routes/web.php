@@ -39,4 +39,5 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/utang/bayar', [UtangController::class, 'bayar'])->name('utang.bayar');
     Route::resource('utang', UtangController::class);
+    Route::get('/laporan', [App\Http\Controllers\LaporanController::class, 'index'])->name('laporan.index');
 });
