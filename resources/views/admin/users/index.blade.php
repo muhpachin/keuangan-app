@@ -23,7 +23,7 @@
                 <tr>
                     <td><a href="{{ route('admin.users.show', $u->id) }}">{{ $u->username }}</a></td>
                     <td>{{ $u->email }}</td>
-                    <td>{{ $u->created_at ? $u->created_at->format('Y-m-d') : '-' }}</td>
+                    <td>{{ $u->created_at ? \Carbon\Carbon::parse($u->created_at)->format('Y-m-d') : '-' }}</td>
                     <td>{{ $u->is_banned ? 'Diblokir' : 'Aktif' }}</td>
                     <td>
                         <form method="POST" action="{{ route('admin.users.ban', $u->id) }}" style="display:inline-block">

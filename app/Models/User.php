@@ -42,6 +42,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'reset_token_expiry' => 'datetime',
         'last_login_at' => 'datetime',
+        'created_at' => 'datetime',
     ];
 
     // Relasi ke rekening
