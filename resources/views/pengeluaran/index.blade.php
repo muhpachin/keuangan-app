@@ -15,7 +15,7 @@
                 <div class="mb-3">
                     <label class="form-label">Kategori</label>
                     <div class="input-group">
-                        <select name="kategori" id="selectKategori" class="form-select" required onchange="toggleDeskripsi()">
+                        <select name="kategori" id="selectKategori" class="form-select" required>
                             @foreach($kategori as $kat)
                                 <option value="{{ $kat->nama_kategori }}">{{ $kat->nama_kategori }}</option>
                             @endforeach
@@ -27,9 +27,9 @@
                     </div>
                 </div>
 
-                <div class="mb-3" id="deskripsiDiv" style="display: none;">
-                    <label class="form-label">Deskripsi Tambahan</label>
-                    <input type="text" name="deskripsi" class="form-control" placeholder="Keterangan...">
+                <div class="mb-3">
+                    <label class="form-label">Deskripsi Tambahan (Opsional)</label>
+                    <input type="text" name="deskripsi" class="form-control" placeholder="Keterangan detail...">
                 </div>
 
                 <div class="mb-3">
@@ -160,17 +160,4 @@
     </div>
 </div>
 
-<script>
-    function toggleDeskripsi() {
-        const kategori = document.getElementById('selectKategori').value;
-        const deskripsiDiv = document.getElementById('deskripsiDiv');
-        
-        if (kategori === 'Lain-lain') {
-            deskripsiDiv.style.display = 'block';
-        } else {
-            deskripsiDiv.style.display = 'none';
-        }
-    }
-    document.addEventListener('DOMContentLoaded', toggleDeskripsi);
-</script>
 @endsection
