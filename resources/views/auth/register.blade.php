@@ -88,7 +88,7 @@
                     </div>
 
                     @if(session('success'))
-                        <div class="alert alert-success">{{ session('success') }}</div>
+                        <div class="alert alert-success">{!! session('success') !!}</div>
                     @else
 
                     @if($errors->any())
@@ -130,7 +130,7 @@
                         </div>
 
 n                        <div class="d-grid">
-                            <button type="submit" class="btn btn-success">Daftar</button>
+                            <button type="submit" name="register" class="btn btn-primary">Register</button>
                         </div>
                     </form>
 

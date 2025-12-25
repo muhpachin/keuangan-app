@@ -43,7 +43,8 @@ class AuthController extends Controller
         ]);
 
         // Tunjukkan pesan sukses di halaman register (sama seperti file PHP yang Anda kirim)
-        return back()->with('success', 'Registrasi berhasil! Silakan login.');
+        $message = 'Registrasi berhasil! Silakan <a href="' . route('login') . '">login</a>.';
+        return back()->with('success', $message);
     }
 
     // Proses Login
