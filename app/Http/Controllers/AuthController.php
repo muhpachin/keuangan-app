@@ -154,9 +154,8 @@ class AuthController extends Controller
             'tipe_akun' => 'gratis', // Set default tipe akun
         ]);
 
-        // Tunjukkan pesan sukses di halaman register (sama seperti file PHP yang Anda kirim)
-        $message = 'Registrasi berhasil! Silakan <a href="' . route('login') . '">login</a>.';
-        return back()->with('success', $message);
+        // Setelah registrasi berhasil, arahkan ke halaman login dengan pemberitahuan sukses
+        return redirect()->route('login')->with('success', 'Akun berhasil dibuat. Silakan login.');
     }
 
     // Proses Login
@@ -186,11 +185,19 @@ class AuthController extends Controller
 
     // --- GOOGLE LOGIN ---
     public function redirectToGoogle() {
+        if (!class_exists(\Laravel\Socialite\Facades\Socialite::class)) {
+            return redirect()->route('login')->with('error', 'Google login tidak tersedia.');
+        }
+
         return Socialite::driver('google')->redirect();
     }
 
     public function handleGoogleCallback()
     {
+        if (!class_exists(\Laravel\Socialite\Facades\Socialite::class)) {
+            return redirect()->route('login')->with('error', 'Google login tidak tersedia.');
+        }
+
         try {
             $googleUser = Socialite::driver('google')->user();
 
