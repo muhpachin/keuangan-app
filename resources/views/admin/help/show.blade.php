@@ -35,20 +35,34 @@
         @endforeach
     </div>
 
-    <form method="POST" action="{{ route('admin.help.send') }}" class="mt-2">
+    <form method="POST" action="{{ route('admin.help.send') }}" class="mt-2" @if($session->status === 'closed') style="display:none;" @endif>
         @csrf
         <input type="hidden" name="help_session_id" value="{{ $session->id }}">
         <div class="input-group">
-            <input type="text" id="message-input" name="message" class="form-control" placeholder="Balas pesan...">
-            <button class="btn btn-primary" id="send-btn">Kirim</button>
+            <input type="text" id="message-input" name="message" class="form-control" placeholder="Balas pesan..." @if($session->status === 'closed') disabled @endif>
+            <button class="btn btn-primary" id="send-btn" @if($session->status === 'closed') disabled @endif>Kirim</button>
         </div>
     </form>
+
+    @if($session->status === 'closed')
+        <p class="text-muted mt-2">Session ini telah ditutup. Tidak dapat mengirim pesan lagi.</p>
+    @endif
 </div>
+
+@if($session->status !== 'closed')
+<script>
+window.addEventListener('beforeunload', function (e) {
+    e.preventDefault();
+    e.returnValue = 'Anda memiliki sesi chat yang masih aktif. Apakah Anda yakin ingin keluar?';
+});
+</script>
+@endif
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const sessionId = '{{ $session->id }}';
     const chatBox = document.getElementById('chat-box');
+    const status = '{{ $session->status }}';
 
     async function fetchMessages() {
         const res = await fetch('/help/messages/' + sessionId);
@@ -63,28 +77,32 @@ document.addEventListener('DOMContentLoaded', function() {
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // initial load + polling
-    fetchMessages();
-    const poll = setInterval(fetchMessages, 3000);
-
-    // handle send via AJAX
-    const sendBtn = document.getElementById('send-btn');
-    const msgInput = document.getElementById('message-input');
-    sendBtn.addEventListener('click', async function(e) {
-        e.preventDefault();
-        const msg = msgInput.value.trim();
-        if (!msg) return;
-        await fetch('{{ route('admin.help.send') }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({ help_session_id: sessionId, message: msg })
-        });
-        msgInput.value = '';
+    // initial load + polling only if not closed
+    if (status !== 'closed') {
         fetchMessages();
-    });
+        const poll = setInterval(fetchMessages, 3000);
+    }
+
+    // handle send via AJAX only if not closed
+    if (status !== 'closed') {
+        const sendBtn = document.getElementById('send-btn');
+        const msgInput = document.getElementById('message-input');
+        sendBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const msg = msgInput.value.trim();
+            if (!msg) return;
+            await fetch('{{ route('admin.help.send') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ help_session_id: sessionId, message: msg })
+            });
+            msgInput.value = '';
+            fetchMessages();
+        });
+    }
 });
 </script>
 

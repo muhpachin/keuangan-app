@@ -174,6 +174,15 @@
                     Anda memiliki notifikasi baru
                 </div>
             </div>
+            <div id="helpToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header bg-success text-white">
+                    <strong class="me-auto">Pesan Baru</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body" id="helpToastMessage">
+                    Anda memiliki pesan baru di Get Help
+                </div>
+            </div>
         </div>
     @endif
 
@@ -184,6 +193,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <strong>Get Help</strong>
                     <div>
+                        <button id="help-popup-toggle-visibility" class="btn btn-sm btn-outline-secondary me-1" title="Toggle Pop-up">👁</button>
                         <button id="help-popup-toggle" class="btn btn-sm btn-light">_</button>
                     </div>
                 </div>
@@ -207,7 +217,8 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <strong>Help (Admin)</strong>
                     <div>
-                        <a href="{{ route('admin.help.index') }}" class="btn btn-sm btn-outline-secondary">Buka Daftar</a>
+                        <a href="{{ route('admin.help.index') }}" class="btn btn-sm btn-outline-secondary me-1">Buka Daftar</a>
+                        <button id="admin-help-popup-toggle-visibility" class="btn btn-sm btn-outline-secondary me-1" title="Toggle Pop-up">👁</button>
                         <button id="admin-help-popup-toggle" class="btn btn-sm btn-light">_</button>
                     </div>
                 </div>
@@ -221,6 +232,28 @@
                     </div>
                 </div>
             </div>
+        </div>
+    @endif
+
+    {{-- Toast for admin help notifications --}}
+    @if(Auth::check() && Auth::user()->isAdmin())
+        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+            <div id="adminHelpToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header bg-warning text-dark">
+                    <strong class="me-auto">Pesan Help Baru</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body" id="adminHelpToastMessage">
+                    Ada pesan baru dari user di Help
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Toggle button for help popup --}}
+    @if(Auth::check())
+        <div id="help-toggle-btn" style="position:fixed; right:20px; bottom:80px; z-index:1999;">
+            <button class="btn btn-secondary btn-sm" title="Toggle Help Pop-up">💬</button>
         </div>
     @endif
 
@@ -318,6 +351,11 @@
             const sendBtn = document.getElementById('help-popup-send');
             const toggleBtn = document.getElementById('help-popup-toggle');
 
+            // Toggle visibility
+            const toggleVisibilityBtn = document.getElementById('help-popup-toggle-visibility');
+            let popupVisible = true; // force true for testing
+            toggleVisibilityBtn.textContent = popupVisible ? '👁' : '🙈';
+
             function renderMessages(list){
                 msgsEl.innerHTML = '';
                 list.forEach(m => {
@@ -333,10 +371,11 @@
                 try{
                     const res = await fetch('{{ route('help.active') }}');
                     const data = await res.json();
+                    console.log('Poll active data:', data);
                     if (data.active){
                         activeSession = data.session;
                         renderMessages(data.messages);
-                        popup.style.display = 'block';
+                        if (popupVisible) popup.style.display = 'block';
                     } else {
                         popup.style.display = 'none';
                     }
@@ -346,17 +385,51 @@
             sendBtn.addEventListener('click', async function(){
                 if (!activeSession) return;
                 const text = input.value.trim(); if (!text) return;
-                await fetch('{{ route('help.popup.send') }}', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: JSON.stringify({help_session_id: activeSession.id, message: text})});
-                input.value='';
-                pollActive();
+                try {
+                    const res = await fetch('{{ route('help.popup.send') }}', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: JSON.stringify({help_session_id: activeSession.id, message: text})});
+                    if (!res.ok) {
+                        const error = await res.json();
+                        alert('Error: ' + (error.error || 'Failed to send message'));
+                        return;
+                    }
+                    input.value='';
+                    pollActive();
+                } catch (e) {
+                    console.error('Send message error:', e);
+                    alert('Failed to send message. Please try again.');
+                }
             });
 
             toggleBtn.addEventListener('click', function(){
                 if (body.style.display === 'none') { body.style.display='block'; } else { body.style.display='none'; }
             });
 
+            toggleVisibilityBtn.addEventListener('click', function(){
+                popupVisible = !popupVisible;
+                localStorage.setItem('helpPopupVisible', popupVisible);
+                popup.style.display = popupVisible && activeSession ? 'block' : 'none';
+                toggleVisibilityBtn.textContent = popupVisible ? '👁' : '🙈';
+            });
+
             // poll every 4s
             pollActive(); setInterval(pollActive, 4000);
+
+            // Notifikasi pesan baru
+            let lastMessageCount = 0;
+            setInterval(async () => {
+                try {
+                    const res = await fetch('{{ route('help.active') }}');
+                    const data = await res.json();
+                    if (data.active && data.messages.length > lastMessageCount) {
+                        const toast = new bootstrap.Toast(document.getElementById('helpToast'));
+                        document.getElementById('helpToastMessage').textContent = 'Anda memiliki pesan baru di Get Help';
+                        toast.show();
+                        lastMessageCount = data.messages.length;
+                    }
+                } catch (e) {
+                    console.error('Error checking new help messages:', e);
+                }
+            }, 10000); // cek setiap 10 detik
         })();
         @endif
 
@@ -370,6 +443,11 @@
             const input = document.getElementById('admin-help-popup-input');
             const sendBtn = document.getElementById('admin-help-popup-send');
             const toggleBtn = document.getElementById('admin-help-popup-toggle');
+
+            // Toggle visibility
+            const toggleVisibilityBtn = document.getElementById('admin-help-popup-toggle-visibility');
+            let popupVisible = localStorage.getItem('adminHelpPopupVisible') !== 'false'; // default true
+            toggleVisibilityBtn.textContent = popupVisible ? '👁' : '🙈';
 
             function renderMessages(list){
                 msgsEl.innerHTML = '';
@@ -386,10 +464,11 @@
                 try{
                     const res = await fetch('{{ route('admin.help.active') }}');
                     const data = await res.json();
+                    console.log('Admin poll active data:', data);
                     if (data.active){
                         activeSession = data.session;
                         renderMessages(data.messages);
-                        popup.style.display = 'block';
+                        if (popupVisible) popup.style.display = 'block';
                     } else {
                         popup.style.display = 'none';
                     }
@@ -399,20 +478,66 @@
             sendBtn.addEventListener('click', async function(){
                 if (!activeSession) return;
                 const text = input.value.trim(); if (!text) return;
-                await fetch('{{ route('admin.help.popup.send') }}', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: JSON.stringify({help_session_id: activeSession.id, message: text})});
-                input.value='';
-                pollActive();
+                try {
+                    const res = await fetch('{{ route('admin.help.popup.send') }}', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: JSON.stringify({help_session_id: activeSession.id, message: text})});
+                    if (!res.ok) {
+                        const error = await res.json();
+                        alert('Error: ' + (error.error || 'Failed to send message'));
+                        return;
+                    }
+                    input.value='';
+                    pollActive();
+                } catch (e) {
+                    console.error('Send message error:', e);
+                    alert('Failed to send message. Please try again.');
+                }
             });
 
             toggleBtn.addEventListener('click', function(){
                 if (body.style.display === 'none') { body.style.display='block'; } else { body.style.display='none'; }
             });
 
+            toggleVisibilityBtn.addEventListener('click', function(){
+                popupVisible = !popupVisible;
+                localStorage.setItem('adminHelpPopupVisible', popupVisible);
+                popup.style.display = popupVisible && activeSession ? 'block' : 'none';
+                toggleVisibilityBtn.textContent = popupVisible ? '👁' : '🙈';
+            });
+
             // poll every 4s
             pollActive(); setInterval(pollActive, 4000);
+
+            // Notifikasi pesan baru untuk admin
+            let lastAdminMessageCount = 0;
+            setInterval(async () => {
+                try {
+                    const res = await fetch('{{ route('admin.help.active') }}');
+                    const data = await res.json();
+                    if (data.active && data.messages.length > lastAdminMessageCount) {
+                        const toast = new bootstrap.Toast(document.getElementById('adminHelpToast'));
+                        document.getElementById('adminHelpToastMessage').textContent = 'Ada pesan baru dari user di Help';
+                        toast.show();
+                        lastAdminMessageCount = data.messages.length;
+                    }
+                } catch (e) {
+                    console.error('Error checking new admin help messages:', e);
+                }
+            }, 10000); // cek setiap 10 detik
         })();
         @endif
+
+        // Toggle button for help popup
+        @if(Auth::check())
+        const toggleBtn = document.getElementById('help-toggle-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function(){
+                const popup = document.getElementById('help-popup') || document.getElementById('admin-help-popup');
+                if (popup) {
+                    popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
+                }
+            });
+        }
+        @endif
     </script>
-    @stack('scripts')
 </body>
 </html>

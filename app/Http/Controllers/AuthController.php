@@ -11,125 +11,13 @@ use Laravel\Socialite\Facades\Socialite;
 class AuthController extends Controller
 {
     // Menampilkan Halaman Login
-    public function showLogin() {
-        return view('auth.login');
-    }
-
-    // Tampilkan form lupa password
-    public function showForgotForm()
-    {
-        return view('auth.forgot');
-    }
-
-    // Proses kirim (tampilkan) pertanyaan keamanan
-    public function sendResetLink(Request $request)
-    {
-        $request->validate([
-            'identifier' => 'required|string', // username atau email
-        ]);
-
-        $identifier = $request->identifier;
-        $user = User::where('username', $identifier)
-            ->orWhere('email', $identifier)
-            ->first();
-
-        if (!$user) {
-            return back()->with('error', 'User tidak ditemukan.');
-        }
-
-        if (!$user->security_question) {
-            return back()->with('error', 'Akun tidak memiliki pertanyaan keamanan terdaftar.');
-        }
-
-        return view('auth.forgot_question', ['user' => $user]);
-    }
-
-    // Verifikasi jawaban keamanan dan reset password
-    public function verifySecurityAnswer(Request $request)
-    {
-        $request->validate([
-            'user_id' => 'required|integer',
-            'security_answer' => 'required|string',
-            'password' => 'required|min:6|confirmed',
-        ]);
-
-        $user = User::find($request->user_id);
-        if (!$user) {
-            return back()->with('error', 'User tidak ditemukan.');
-        }
-
-        $given = strtolower(trim($request->security_answer));
-        if (!Hash::check($given, $user->security_answer)) {
-            return back()->with('error', 'Jawaban keamanan salah.');
-        }
-
-        $user->password = Hash::make($request->password);
-        $user->save();
-
-        return redirect()->route('login')->with('success', 'Password berhasil diubah. Silakan login.');
-    }
-
-    // Tampilkan form reset password (menggunakan token)
-    public function showResetForm($token)
-    {
-        // Find candidate users with non-expired tokens, then verify the hashed token
-        $candidates = User::whereNotNull('reset_token')
-            ->whereNotNull('reset_token_expiry')
-            ->where('reset_token_expiry', '>=', Carbon::now())
-            ->get();
-
-        $found = null;
-        foreach ($candidates as $u) {
-            if (Hash::check($token, $u->reset_token)) {
-                $found = $u;
-                break;
-            }
-        }
-
-        if (!$found) {
-            return redirect()->route('password.request')->with('error', 'Token tidak valid atau sudah kadaluarsa.');
-        }
-
-        return view('auth.reset', ['token' => $token]);
-    }
-
-    // Proses reset password
-    public function resetPassword(Request $request)
-    {
-        $request->validate([
-            'token' => 'required|string',
-            'password' => 'required|min:6|confirmed',
-        ]);
-
-        // Locate user by verifying hashed reset_token among non-expired candidates
-        $candidates = User::whereNotNull('reset_token')
-            ->whereNotNull('reset_token_expiry')
-            ->where('reset_token_expiry', '>=', Carbon::now())
-            ->get();
-
-        $found = null;
-        foreach ($candidates as $u) {
-            if (Hash::check($request->token, $u->reset_token)) {
-                $found = $u;
-                break;
-            }
-        }
-
-        if (!$found) {
-            return redirect()->route('password.request')->with('error', 'Token tidak valid atau sudah kadaluarsa.');
-        }
-
-        $found->password = Hash::make($request->password);
-        $found->reset_token = null;
-        $found->reset_token_expiry = null;
-        $found->save();
-
-        return redirect()->route('login')->with('success', 'Password berhasil diubah. Silakan login.');
+    public function showLogin() { 
+        return view('auth.login'); 
     }
 
     // Menampilkan Halaman Register
-    public function showRegister() {
-        return view('auth.register');
+    public function showRegister() { 
+        return view('auth.register'); 
     }
 
     // Proses Register (DIPERBAIKI: Menghapus 'name', menggunakan 'username')
@@ -144,7 +32,8 @@ class AuthController extends Controller
         ]);
 
         // 2. Simpan ke Database
-        $user = User::create([
+        User::create([
+            'name' => $request->username, // Set name sama dengan username
             'username' => $request->username, // Pakai username
             // 'name' => $request->name, <--- BARIS INI SUDAH DIHAPUS AGAR TIDAK ERROR
             'password' => Hash::make($request->password),
@@ -154,26 +43,7 @@ class AuthController extends Controller
             'tipe_akun' => 'gratis', // Set default tipe akun
         ]);
 
-        // Seed default categories for this user
-        if (class_exists(\App\Models\DefaultCategory::class)) {
-            $defaults = \App\Models\DefaultCategory::all();
-            foreach ($defaults as $d) {
-                if ($d->type === 'pemasukan' && class_exists(\App\Models\Kategori::class)) {
-                    \App\Models\Kategori::firstOrCreate([
-                        'user_id' => $user->id,
-                        'nama_kategori' => $d->name,
-                    ]);
-                } elseif ($d->type === 'pengeluaran' && class_exists(\App\Models\KategoriPengeluaran::class)) {
-                    \App\Models\KategoriPengeluaran::firstOrCreate([
-                        'user_id' => $user->id,
-                        'nama_kategori' => $d->name,
-                    ]);
-                }
-            }
-        }
-
-        // Setelah registrasi berhasil, arahkan ke halaman login dengan pemberitahuan sukses
-        return redirect()->route('login')->with('success', 'Akun berhasil dibuat. Silakan login.');
+        return redirect()->route('login')->with('success', 'Registrasi berhasil! Silakan login.');
     }
 
     // Proses Login
@@ -184,20 +54,8 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        // Prevent banned users
-        $candidate = User::where('username', $request->username)->first();
-        if ($candidate && $candidate->is_banned) {
-            return back()->with('error', 'Akun ini diblokir. Hubungi administrator.');
-        }
-
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
-
-            // Update last login timestamp
-            $user = Auth::user();
-            $user->last_login_at = now();
-            $user->save();
-
             return redirect()->route('dashboard');
         }
 
@@ -214,23 +72,15 @@ class AuthController extends Controller
     }
 
     // --- GOOGLE LOGIN ---
-    public function redirectToGoogle() {
-        if (!class_exists(\Laravel\Socialite\Facades\Socialite::class)) {
-            return redirect()->route('login')->with('error', 'Google login tidak tersedia.');
-        }
-
-        return Socialite::driver('google')->redirect();
+    public function redirectToGoogle() { 
+        return Socialite::driver('google')->redirect(); 
     }
 
     public function handleGoogleCallback()
     {
-        if (!class_exists(\Laravel\Socialite\Facades\Socialite::class)) {
-            return redirect()->route('login')->with('error', 'Google login tidak tersedia.');
-        }
-
         try {
             $googleUser = Socialite::driver('google')->user();
-
+            
             // Cek user berdasarkan Google ID atau Email
             $user = User::where('google_id', $googleUser->getId())
                         ->orWhere('email', $googleUser->getEmail())
@@ -239,6 +89,7 @@ class AuthController extends Controller
             if (!$user) {
                 // Register User Baru dari Google
                 $user = User::create([
+                    'name' => $googleUser->getName(), // Set name dari Google
                     'username' => $googleUser->getName(), // Gunakan nama Google sebagai username awal
                     'email' => $googleUser->getEmail(),
                     'google_id' => $googleUser->getId(),
@@ -254,9 +105,99 @@ class AuthController extends Controller
 
             Auth::login($user);
             return redirect()->route('dashboard');
-
+            
         } catch (\Exception $e) {
             return redirect()->route('login')->with('error', 'Login Google Gagal: ' . $e->getMessage());
         }
+    }
+
+    // --- LUPA PASSWORD DENGAN PERTANYAAN KEAMANAN ---
+    public function showForgotPassword()
+    {
+        return view('auth.forgot');
+    }
+
+    public function sendSecurityQuestion(Request $request)
+    {
+        $request->validate([
+            'identifier' => 'required',
+        ]);
+
+        $user = User::where('username', $request->identifier)
+                    ->orWhere('email', $request->identifier)
+                    ->first();
+
+        if (!$user) {
+            return back()->with('error', 'Username atau email tidak ditemukan.');
+        }
+
+        if (!$user->security_question) {
+            return back()->with('error', 'Akun ini belum mengatur pertanyaan keamanan. Silakan hubungi admin.');
+        }
+
+        // Simpan user id di session untuk verifikasi jawaban
+        session(['reset_user_id' => $user->id]);
+
+        return view('auth.forgot', [
+            'show_question' => true,
+            'question' => $user->security_question,
+        ]);
+    }
+
+    public function verifySecurityAnswer(Request $request)
+    {
+        $request->validate([
+            'answer' => 'required',
+        ]);
+
+        $userId = session('reset_user_id');
+        if (!$userId) {
+            return redirect()->route('password.request')->with('error', 'Sesi expired. Silakan ulangi.');
+        }
+
+        $user = User::find($userId);
+        if (!$user) {
+            return redirect()->route('password.request')->with('error', 'User tidak ditemukan.');
+        }
+
+        if (!Hash::check(strtolower(trim($request->answer)), $user->security_answer)) {
+            return back()->with('error', 'Jawaban salah.');
+        }
+
+        // Jawaban benar, redirect ke reset password
+        session(['verified_user_id' => $user->id]);
+
+        return redirect()->route('password.reset.form');
+    }
+
+    public function showResetForm()
+    {
+        if (!session('verified_user_id')) {
+            return redirect()->route('password.request')->with('error', 'Akses tidak sah.');
+        }
+
+        return view('auth.reset');
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|min:6|confirmed',
+        ]);
+
+        $userId = session('verified_user_id');
+        if (!$userId) {
+            return redirect()->route('password.request')->with('error', 'Sesi expired.');
+        }
+
+        $user = User::find($userId);
+        $user->update([
+            'password' => Hash::make($request->password),
+        ]);
+
+        // Clear session
+        session()->forget(['reset_user_id', 'verified_user_id']);
+
+        return redirect()->route('login')->with('success', 'Password berhasil direset. Silakan login.');
     }
 }

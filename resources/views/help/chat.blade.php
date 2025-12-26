@@ -12,6 +12,12 @@
             @csrf
             <button class="btn btn-primary">Mulai Chat dengan Admin</button>
         </form>
+    @elseif($session->status == 'closed')
+        <p>Session chat ini telah ditutup. Anda tidak dapat mengirim pesan lagi.</p>
+        <form method="POST" action="{{ route('help.start') }}">
+            @csrf
+            <button class="btn btn-primary">Mulai Session Baru</button>
+        </form>
     @else
         <div id="chat-box" style="height:400px; overflow:auto; border:1px solid #ddd; padding:10px;">
             <!-- messages akan diisi oleh JS -->
@@ -27,6 +33,15 @@
         </form>
     @endif
 </div>
+
+@if($session && $session->status == 'open')
+<script>
+window.addEventListener('beforeunload', function (e) {
+    e.preventDefault();
+    e.returnValue = 'Anda memiliki sesi chat yang masih aktif. Apakah Anda yakin ingin keluar?';
+});
+</script>
+@endif
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

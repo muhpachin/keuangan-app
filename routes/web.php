@@ -134,5 +134,5 @@ Route::prefix('admin')->middleware(['auth','is_admin'])->group(function () {
     Route::post('/help/{id}/close', [App\Http\Controllers\Admin\HelpController::class, 'close'])->name('admin.help.close');
     // Popup API for admin floating chat (returns most recent open session and messages)
     Route::get('/help/active', [App\Http\Controllers\Admin\HelpController::class, 'active'])->name('admin.help.active');
-    Route::post('/help/popup-send', [App\Http\Controllers\Admin\HelpController::class, 'popupSend'])->name('admin.help.popup.send');
+    Route::post('/popup-send', [App\Http\Controllers\Admin\HelpController::class, 'popupSend'])->name('admin.help.popup.send');
 });

@@ -84,6 +84,10 @@ class HelpController extends Controller
         $session = HelpSession::findOrFail($request->help_session_id);
         $this->authorizeUser($session);
 
+        if ($session->status === 'closed') {
+            return response()->json(['error' => 'Session closed'], 422);
+        }
+
         $msg = HelpMessage::create([
             'help_session_id' => $session->id,
             'user_id' => Auth::id(),

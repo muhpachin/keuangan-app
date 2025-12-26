@@ -28,6 +28,11 @@ class HelpController extends Controller
             'message' => 'required|string',
         ]);
 
+        $session = HelpSession::findOrFail($request->help_session_id);
+        if ($session->status === 'closed') {
+            return redirect()->back()->with('error', 'Session sudah ditutup, tidak dapat mengirim pesan.');
+        }
+
         $msg = HelpMessage::create([
             'help_session_id' => $request->help_session_id,
             'user_id' => $request->user()->id,
