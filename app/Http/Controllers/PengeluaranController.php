@@ -24,7 +24,7 @@ class PengeluaranController extends Controller
         
         // Pastikan Model KategoriPengeluaran sudah dibuat, jika belum bisa pakai array manual atau model Kategori biasa
         // Cek apakah Anda punya model App\Models\KategoriPengeluaran, jika tidak ubah ke App\Models\Kategori
-        $kategori = \App\Models\KategoriPengeluaran::where('user_id', $userId)->get(); 
+        $kategori = KategoriPengeluaran::where('user_id', $userId)->get(); 
         
         $rekening = Rekening::where('user_id', $userId)->get();
 
@@ -44,6 +44,10 @@ class PengeluaranController extends Controller
             $userId = Auth::id();
             $rekening = Rekening::where('user_id', $userId)->find($request->rekening_id);
 
+            if (!$rekening) {
+                throw new \Exception('Rekening tidak ditemukan atau tidak valid.');
+            }
+
             // LOGIKA PERBAIKAN: 
             // Cek apakah deskripsi diisi? Jika kosong, pakai nama kategori.
             $deskripsiFinal = $request->deskripsi ? $request->deskripsi : $request->kategori;
@@ -51,7 +55,7 @@ class PengeluaranController extends Controller
             Pengeluaran::create([
                 'user_id' => $userId,
                 'kategori' => $request->kategori,
-                'deskripsi' => $deskripsiFinal, // <--- Tidak akan NULL lagi
+                'deskripsi' => $deskripsiFinal, 
                 'jumlah' => $request->jumlah,
                 'rekening_id' => $request->rekening_id,
                 'tanggal' => $request->tanggal
