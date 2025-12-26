@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Keuangan')</title>
-    
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    
-    <style>    
+
+    <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f8f9fa; }
         .body-no-scroll { overflow: hidden; }
         .sidebar { width: 250px; height: 100vh; position: fixed; left: 0; top: 0; background: linear-gradient(to bottom, #007bff, #0056b3); color: white; padding-top: 20px; transition: transform 0.3s ease-in-out; z-index: 1051; display: flex; flex-direction: column; }
@@ -22,18 +22,18 @@
         .sidebar .collapse a .bi { vertical-align: -.125em; }
         .sidebar .collapse a.active, .sidebar .collapse a:hover { background: rgba(255,255,255,0.08); }
         .sidebar .admin-chevron { float: right; margin-top: 2px; }
-        
+
         .main-content { transition: margin-left 0.3s ease-in-out; }
         .card { border: none; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1050; display: none; }
         .sidebar-overlay.active { display: block; }
-        
+
         /* Animasi Loader */
         .loader-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 2000; opacity: 0; transition: opacity 0.3s ease-in-out; }
         .loader-wrapper.active { display: flex; opacity: 1; }
         .loader { border: 8px solid #f3f3f3; border-radius: 50%; border-top: 8px solid #007bff; width: 60px; height: 60px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
+
         @media (min-width: 992px) { .main-content { margin-left: 250px; } }
         @media (max-width: 991.98px) { .sidebar { transform: translateX(-100%); } .sidebar.active { transform: translateX(0); } .main-content { margin-left: 0; } }
 
@@ -56,7 +56,7 @@
         }
 
         .sidebar img { max-width: 70px; max-height: 70px; }
-        
+
     </style>
 </head>
 <body>
@@ -72,7 +72,7 @@
                 <img src="{{ asset('logo1.svg') }}" alt="Logo" style="width: 70px; height: auto; margin-bottom: 2px;">
                 <h3>KEUANGAN</h3>
             </div>
-            
+
             @if(Auth::check() && Auth::user()->isAdmin())
                 <a class="admin-toggle {{ request()->routeIs('admin.*') ? 'active' : '' }}" data-bs-toggle="collapse" href="#adminMenu" role="button" aria-expanded="{{ request()->routeIs('admin.*') ? 'true' : 'false' }}" aria-controls="adminMenu">
                     <i class="bi bi-shield-lock-fill me-1"></i> Admin
@@ -99,7 +99,7 @@
                 <a href="{{ route('laporan.index') }}" class="{{ request()->routeIs('laporan.*') ? 'active' : '' }}">Laporan</a>
                 <a href="{{ route('help.index') }}" class="{{ request()->routeIs('help.*') ? 'active' : '' }}">Get Help</a>
             @endif
-            
+
             <form action="{{ route('logout') }}" method="POST" id="logout-form">
                 @csrf
                 <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a>
@@ -225,7 +225,7 @@
     @endif
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <script>
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebarToggle');
