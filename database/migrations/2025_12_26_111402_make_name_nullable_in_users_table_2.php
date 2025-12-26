@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -12,7 +13,9 @@ return new class extends Migration
      */
     public function up()
     {
-        DB::statement('ALTER TABLE users MODIFY name VARCHAR(255) NULL');
+        if (Schema::hasColumn('users', 'name')) {
+            DB::statement('ALTER TABLE users MODIFY name VARCHAR(255) NULL');
+        }
     }
 
     /**
@@ -22,6 +25,8 @@ return new class extends Migration
      */
     public function down()
     {
-        DB::statement('ALTER TABLE users MODIFY name VARCHAR(255) NOT NULL');
+        if (Schema::hasColumn('users', 'name')) {
+            DB::statement('ALTER TABLE users MODIFY name VARCHAR(255) NOT NULL');
+        }
     }
 };

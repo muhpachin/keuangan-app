@@ -86,9 +86,10 @@
                     <a href="{{ route('admin.backups.index') }}" class="{{ request()->routeIs('admin.backups.*') ? 'active' : '' }}"> <i class="bi bi-download me-1"></i> Database Backups</a>
                     <a href="{{ route('admin.tips.index') }}" class="{{ request()->routeIs('admin.tips.*') ? 'active' : '' }}"> <i class="bi bi-lightbulb me-1"></i> Tips Keuangan</a>
                     <a href="{{ route('admin.landing.index') }}" class="{{ request()->routeIs('admin.landing.*') ? 'active' : '' }}"><i class="bi bi-layout-text-window-reverse me-1"></i> Landing Page</a>
+                    <a href="{{ route('admin.help.index') }}" class="{{ request()->routeIs('admin.help.*') ? 'active' : '' }}"> <i class="bi bi-chat-dots me-1"></i> Help Sessions</a>
                     <a href="{{ route('admin.system.maintenance') }}" class="{{ request()->routeIs('admin.system.*') ? 'active' : '' }}"> <i class="bi bi-gear me-1"></i> System</a>
                 </div>
-            @else
+                @else
                 <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">Dashboard</a>
                 <a href="{{ route('rekening.index') }}" class="{{ request()->routeIs('rekening.*') ? 'active' : '' }}">Rekening</a>
                 <a href="{{ route('pemasukan.index') }}" class="{{ request()->routeIs('pemasukan.*') ? 'active' : '' }}">Pemasukan</a>
@@ -96,6 +97,7 @@
                 <a href="{{ route('transfer.index') }}" class="{{ request()->routeIs('transfer.*') ? 'active' : '' }}">Transfer</a>
                 <a href="{{ route('utang.index') }}" class="{{ request()->routeIs('utang.*') ? 'active' : '' }}">Utang</a>
                 <a href="{{ route('laporan.index') }}" class="{{ request()->routeIs('laporan.*') ? 'active' : '' }}">Laporan</a>
+                <a href="{{ route('help.index') }}" class="{{ request()->routeIs('help.*') ? 'active' : '' }}">Get Help</a>
             @endif
             
             <form action="{{ route('logout') }}" method="POST" id="logout-form">
@@ -118,6 +120,9 @@
                                 <span id="unreadCountNumDesktop">0</span>
                                 <span class="visually-hidden">unread notifications</span>
                             </span>
+                        </a>
+                        <a href="{{ route('help.index') }}" class="btn btn-outline-primary" title="Get Help">
+                            <i class="bi bi-life-preserver"></i>
                         </a>
                     @endif
                 </div>
@@ -167,6 +172,53 @@
                 </div>
                 <div class="toast-body" id="toastMessage">
                     Anda memiliki notifikasi baru
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Floating popup chat for user --}}
+    @if(Auth::check() && !Auth::user()->isAdmin())
+        <div id="help-popup" style="display:none; position:fixed; right:20px; bottom:20px; width:320px; z-index:2000;">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Get Help</strong>
+                    <div>
+                        <button id="help-popup-toggle" class="btn btn-sm btn-light">_</button>
+                    </div>
+                </div>
+                <div class="card-body p-2" id="help-popup-body" style="height:220px; overflow:auto;">
+                    <div id="help-popup-messages"></div>
+                </div>
+                <div class="card-footer p-2">
+                    <div class="input-group">
+                        <input type="text" id="help-popup-input" class="form-control form-control-sm" placeholder="Ketik pesan...">
+                        <button id="help-popup-send" class="btn btn-primary btn-sm">Kirim</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Floating popup for admin (most recent open session) --}}
+    @if(Auth::check() && Auth::user()->isAdmin())
+        <div id="admin-help-popup" style="display:none; position:fixed; right:20px; bottom:20px; width:420px; z-index:2000;">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Help (Admin)</strong>
+                    <div>
+                        <a href="{{ route('admin.help.index') }}" class="btn btn-sm btn-outline-secondary">Buka Daftar</a>
+                        <button id="admin-help-popup-toggle" class="btn btn-sm btn-light">_</button>
+                    </div>
+                </div>
+                <div class="card-body p-2" id="admin-help-popup-body" style="height:300px; overflow:auto;">
+                    <div id="admin-help-popup-messages"></div>
+                </div>
+                <div class="card-footer p-2">
+                    <div class="input-group">
+                        <input type="text" id="admin-help-popup-input" class="form-control form-control-sm" placeholder="Balas pesan...">
+                        <button id="admin-help-popup-send" class="btn btn-primary btn-sm">Kirim</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -254,6 +306,112 @@
                 }
             });
         });
+
+        // Chat popup logic (user)
+        @if(Auth::check() && !Auth::user()->isAdmin())
+        (function(){
+            let activeSession = null;
+            const popup = document.getElementById('help-popup');
+            const body = document.getElementById('help-popup-body');
+            const msgsEl = document.getElementById('help-popup-messages');
+            const input = document.getElementById('help-popup-input');
+            const sendBtn = document.getElementById('help-popup-send');
+            const toggleBtn = document.getElementById('help-popup-toggle');
+
+            function renderMessages(list){
+                msgsEl.innerHTML = '';
+                list.forEach(m => {
+                    const div = document.createElement('div');
+                    div.style.marginBottom = '8px';
+                    div.innerHTML = '<strong>' + (m.user.name || m.user.username) + ':</strong> ' + (m.message) + '<br><small class="text-muted">' + new Date(m.created_at).toLocaleString() + '</small>';
+                    msgsEl.appendChild(div);
+                });
+                body.scrollTop = body.scrollHeight;
+            }
+
+            async function pollActive(){
+                try{
+                    const res = await fetch('{{ route('help.active') }}');
+                    const data = await res.json();
+                    if (data.active){
+                        activeSession = data.session;
+                        renderMessages(data.messages);
+                        popup.style.display = 'block';
+                    } else {
+                        popup.style.display = 'none';
+                    }
+                }catch(e){console.error('help popup poll', e)}
+            }
+
+            sendBtn.addEventListener('click', async function(){
+                if (!activeSession) return;
+                const text = input.value.trim(); if (!text) return;
+                await fetch('{{ route('help.popup.send') }}', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: JSON.stringify({help_session_id: activeSession.id, message: text})});
+                input.value='';
+                pollActive();
+            });
+
+            toggleBtn.addEventListener('click', function(){
+                if (body.style.display === 'none') { body.style.display='block'; } else { body.style.display='none'; }
+            });
+
+            // poll every 4s
+            pollActive(); setInterval(pollActive, 4000);
+        })();
+        @endif
+
+        // Chat popup logic (admin)
+        @if(Auth::check() && Auth::user()->isAdmin())
+        (function(){
+            let activeSession = null;
+            const popup = document.getElementById('admin-help-popup');
+            const body = document.getElementById('admin-help-popup-body');
+            const msgsEl = document.getElementById('admin-help-popup-messages');
+            const input = document.getElementById('admin-help-popup-input');
+            const sendBtn = document.getElementById('admin-help-popup-send');
+            const toggleBtn = document.getElementById('admin-help-popup-toggle');
+
+            function renderMessages(list){
+                msgsEl.innerHTML = '';
+                list.forEach(m => {
+                    const div = document.createElement('div');
+                    div.style.marginBottom = '8px';
+                    div.innerHTML = '<strong>' + (m.user.name || m.user.username) + ':</strong> ' + (m.message) + '<br><small class="text-muted">' + new Date(m.created_at).toLocaleString() + '</small>';
+                    msgsEl.appendChild(div);
+                });
+                body.scrollTop = body.scrollHeight;
+            }
+
+            async function pollActive(){
+                try{
+                    const res = await fetch('{{ route('admin.help.active') }}');
+                    const data = await res.json();
+                    if (data.active){
+                        activeSession = data.session;
+                        renderMessages(data.messages);
+                        popup.style.display = 'block';
+                    } else {
+                        popup.style.display = 'none';
+                    }
+                }catch(e){console.error('admin help popup poll', e)}
+            }
+
+            sendBtn.addEventListener('click', async function(){
+                if (!activeSession) return;
+                const text = input.value.trim(); if (!text) return;
+                await fetch('{{ route('admin.help.popup.send') }}', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: JSON.stringify({help_session_id: activeSession.id, message: text})});
+                input.value='';
+                pollActive();
+            });
+
+            toggleBtn.addEventListener('click', function(){
+                if (body.style.display === 'none') { body.style.display='block'; } else { body.style.display='none'; }
+            });
+
+            // poll every 4s
+            pollActive(); setInterval(pollActive, 4000);
+        })();
+        @endif
     </script>
     @stack('scripts')
 </body>

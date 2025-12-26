@@ -33,6 +33,18 @@ Route::post('/password/answer', [AuthController::class, 'verifySecurityAnswer'])
 Route::get('/password/reset/{token}', [AuthController::class, 'showResetForm'])->name('password.reset');
 Route::post('/password/reset', [AuthController::class, 'resetPassword'])->name('password.update');
 
+// HELP / LIVE CHAT (User)
+Route::middleware('auth')->group(function () {
+    Route::get('/help', [App\Http\Controllers\HelpController::class, 'index'])->name('help.index');
+    Route::post('/help/start', [App\Http\Controllers\HelpController::class, 'start'])->name('help.start');
+    Route::get('/help/{id}', [App\Http\Controllers\HelpController::class, 'show'])->name('help.show');
+    Route::get('/help/messages/{id}', [App\Http\Controllers\HelpController::class, 'messages'])->name('help.messages');
+    Route::post('/help/messages', [App\Http\Controllers\HelpController::class, 'sendMessage'])->name('help.send');
+    // Popup API for user-side floating chat
+    Route::get('/help/active', [App\Http\Controllers\HelpController::class, 'active'])->name('help.active');
+    Route::post('/help/popup-send', [App\Http\Controllers\HelpController::class, 'popupSend'])->name('help.popup.send');
+});
+
 // DASHBOARD & FITUR (Harus Login)
 Route::middleware('auth')->group(function () {
 
@@ -113,4 +125,14 @@ Route::prefix('admin')->middleware(['auth','is_admin'])->group(function () {
     // Landing Page
     Route::get('/landing', [LandingPageController::class, 'index'])->name('admin.landing.index');
     Route::post('/landing', [LandingPageController::class, 'update'])->name('admin.landing.update');
+
+    // Help / Live Chat (Admin)
+    Route::get('/help', [App\Http\Controllers\Admin\HelpController::class, 'index'])->name('admin.help.index');
+    Route::get('/help/{id}', [App\Http\Controllers\Admin\HelpController::class, 'show'])->name('admin.help.show');
+    Route::post('/help/messages', [App\Http\Controllers\Admin\HelpController::class, 'sendMessage'])->name('admin.help.send');
+    Route::post('/help/start/{user}', [App\Http\Controllers\Admin\HelpController::class, 'startSession'])->name('admin.help.start');
+    Route::post('/help/{id}/close', [App\Http\Controllers\Admin\HelpController::class, 'close'])->name('admin.help.close');
+    // Popup API for admin floating chat (returns most recent open session and messages)
+    Route::get('/help/active', [App\Http\Controllers\Admin\HelpController::class, 'active'])->name('admin.help.active');
+    Route::post('/help/popup-send', [App\Http\Controllers\Admin\HelpController::class, 'popupSend'])->name('admin.help.popup.send');
 });

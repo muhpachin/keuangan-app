@@ -13,6 +13,10 @@
         <tr><th>Status</th><td>{{ $user->is_banned ? 'Diblokir' : 'Aktif' }}</td></tr>
     </table>
 
+    <form method="POST" action="{{ route('admin.help.start', $user->id) }}" style="display:inline-block">
+        @csrf
+        <button type="submit" class="btn btn-info">Respond (Get Help)</button>
+    </form>
     <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">Kembali</a>
 </div>
 @endsection

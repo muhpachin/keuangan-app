@@ -77,6 +77,13 @@
                                 </button>
                             </form>
 
+                            <form method="POST" action="{{ route('admin.help.start', $u->id) }}" style="display:inline-block">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-info" title="Respond (Get Help)" data-bs-toggle="tooltip" data-bs-placement="top"> 
+                                    <i class="bi bi-chat-dots"></i> <span class="visually-hidden">Respond</span>
+                                </button>
+                            </form>
+
                         </td>
                     </tr>
                 @endforeach
