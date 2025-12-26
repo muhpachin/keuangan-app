@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Utang;
 use App\Models\Rekening;
 use App\Models\Pengeluaran;
+use App\Models\Pemasukan;
+use App\Models\RiwayatUtang;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -15,12 +17,20 @@ class UtangController extends Controller
     {
         $userId = Auth::id();
         $utang = Utang::where('user_id', $userId)
-            ->orderBy('status', 'asc') // Tampilkan yang belum lunas dulu
+            ->where('jenis', 'utang')
+            ->orderBy('status', 'asc')
             ->orderBy('jatuh_tempo', 'asc')
             ->get();
+            
+        $piutang = Utang::where('user_id', $userId)
+            ->where('jenis', 'piutang')
+            ->orderBy('status', 'asc')
+            ->orderBy('jatuh_tempo', 'asc')
+            ->get();
+
         $rekening = Rekening::where('user_id', $userId)->get();
 
-        return view('utang.index', compact('utang', 'rekening'));
+        return view('utang.index', compact('utang', 'piutang', 'rekening'));
     }
 
     public function store(Request $request)
@@ -28,10 +38,12 @@ class UtangController extends Controller
         $request->validate([
             'deskripsi' => 'required',
             'jumlah' => 'required|numeric|min:1',
+            'jenis' => 'in:utang,piutang'
         ]);
 
         Utang::create([
             'user_id' => Auth::id(),
+            'jenis' => $request->jenis ?? 'utang',
             'deskripsi' => $request->deskripsi,
             'jumlah' => $request->jumlah,
             
@@ -79,25 +91,54 @@ class UtangController extends Controller
 
                 $utang->update($updateData);
 
-                // 3. Potong Saldo Rekening
-                $rekening = Rekening::where('id', $request->rekening_id)->first();
-                if (!$rekening) throw new \Exception("Rekening tidak ditemukan.");
-                
-                // Cek saldo rekening (Logika biasa + 50rb)
-                if (($rekening->saldo - $rekening->minimum_saldo) < $request->jumlah_bayar) {
-                    throw new \Exception("Saldo rekening tidak cukup!");
+                // 3. Potong/Tambah Saldo Rekening
+                $rekening = Rekening::where('id', $request->rekening_id)
+                    ->where('user_id', $userId)
+                    ->first();
+                    
+                if (!$rekening) throw new \Exception("Rekening tidak ditemukan atau bukan milik Anda.");
+
+                if ($utang->jenis == 'piutang') {
+                    // Logic PIUTANG (Terima Uang) -> Tambah Saldo
+                    $rekening->increment('saldo', $request->jumlah_bayar);
+
+                    // 4. Catat Otomatis di Pemasukan
+                    Pemasukan::create([
+                        'user_id' => $userId,
+                        'rekening_id' => $request->rekening_id,
+                        'kategori' => 'Penerimaan Piutang',
+                        'deskripsi' => $request->deskripsi_utang . " (" . $utang->deskripsi . ")",
+                        'jumlah' => $request->jumlah_bayar,
+                        'tanggal' => now()
+                    ]);
+
+                } else {
+                    // Logic UTANG (Bayar Uang) -> Kurangi Saldo
+                    
+                    // Cek saldo rekening (Logika biasa + 50rb)
+                    if (($rekening->saldo - $rekening->minimum_saldo) < $request->jumlah_bayar) {
+                        throw new \Exception("Saldo rekening tidak cukup!");
+                    }
+    
+                    $rekening->decrement('saldo', $request->jumlah_bayar);
+    
+                    // 4. Catat Otomatis di Pengeluaran
+                    Pengeluaran::create([
+                        'user_id' => $userId,
+                        'kategori' => 'Pembayaran Utang',
+                        'deskripsi' => $request->deskripsi_utang . " (" . $utang->deskripsi . ")",
+                        'jumlah' => $request->jumlah_bayar,
+                        'rekening_id' => $request->rekening_id,
+                        'tanggal' => now()
+                    ]);
                 }
-
-                $rekening->decrement('saldo', $request->jumlah_bayar);
-
-                // 4. Catat Otomatis di Pengeluaran
-                Pengeluaran::create([
-                    'user_id' => $userId,
-                    'kategori' => 'Pembayaran Utang',
-                    'deskripsi' => $request->deskripsi_utang . " (" . $utang->deskripsi . ")",
+                
+                // 5. Simpan Riwayat Cicilan
+                RiwayatUtang::create([
+                    'utang_id' => $utang->id,
                     'jumlah' => $request->jumlah_bayar,
-                    'rekening_id' => $request->rekening_id,
-                    'tanggal' => now()
+                    'tanggal' => now(),
+                    'keterangan' => $utang->jenis == 'piutang' ? 'Terima Pembayaran' : 'Bayar Cicilan'
                 ]);
             });
 
@@ -145,5 +186,17 @@ class UtangController extends Controller
         ]);
 
         return back()->with('success', 'Utang berhasil diperbarui.');
+    }
+
+    public function getRiwayat($id)
+    {
+        $riwayat = RiwayatUtang::where('utang_id', $id)
+            ->whereHas('utang', function($q) {
+                $q->where('user_id', Auth::id());
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+        return response()->json($riwayat);
     }
 }

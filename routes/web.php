@@ -50,6 +50,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('transfer', TransferController::class);
 
     Route::post('/utang/bayar', [UtangController::class, 'bayar'])->name('utang.bayar');
+    Route::get('/utang/{id}/riwayat', [UtangController::class, 'getRiwayat'])->name('utang.riwayat');
     Route::resource('utang', UtangController::class);
     Route::get('/laporan', [App\Http\Controllers\LaporanController::class, 'index'])->name('laporan.index');
 
