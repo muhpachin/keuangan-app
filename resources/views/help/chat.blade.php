@@ -19,7 +19,7 @@
             <button class="btn btn-primary">Mulai Session Baru</button>
         </form>
     @else
-        <div id="chat-box" style="height:400px; overflow:auto; border:1px solid #ddd; padding:10px;">
+        <div id="chat-box" class="chat-container">
             <!-- messages akan diisi oleh JS -->
         </div>
 
@@ -47,20 +47,31 @@ window.addEventListener('beforeunload', function (e) {
 document.addEventListener('DOMContentLoaded', function() {
     const sessionId = document.getElementById('help_session_id') ? document.getElementById('help_session_id').value : null;
     const chatBox = document.getElementById('chat-box');
+    
+    // Instantiate ChatUtil
+    // routes object constructed from blade
+    const routes = {
+        messages: '/help/messages/__ID__'
+    };
+    const chatUtil = new ChatUtil(routes);
+    const currentUserId = {{ Auth::id() }};
+
+    let lastMessageId = 0;
 
     async function fetchMessages() {
-        if (!sessionId) return;
-        const res = await fetch('/help/messages/' + sessionId);
-        const data = await res.json();
-        if (!chatBox) return;
-        chatBox.innerHTML = '';
-        data.forEach(m => {
-            const el = document.createElement('div');
-            el.innerHTML = '<strong>' + (m.user.name || m.user.username) + ':</strong> ' + m.message + '<br><small class="text-muted">' + new Date(m.created_at).toLocaleString() + '</small>';
-            el.style.marginBottom = '10px';
-            chatBox.appendChild(el);
-        });
-        chatBox.scrollTop = chatBox.scrollHeight;
+        if (!sessionId || !chatBox) return;
+        const data = await chatUtil.fetchMessages(sessionId, lastMessageId);
+        
+        if (data.length > 0) {
+            data.forEach(m => {
+                if(m.id <= lastMessageId) return;
+                const isSelf = (m.user_id === currentUserId);
+                const el = chatUtil.createMessageElement(m, isSelf);
+                chatBox.appendChild(el);
+                if(m.id > lastMessageId) lastMessageId = m.id;
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
     }
 
     if (sessionId) {
@@ -69,15 +80,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         document.getElementById('send-form').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const msg = document.getElementById('message-input').value.trim();
+            const msgInput = document.getElementById('message-input');
+            const msg = msgInput.value.trim();
             if (!msg) return;
-            await fetch('/help/messages', {
-                method: 'POST',
-                headers: {'Content-Type':'application/json','X-CSRF-TOKEN': '{{ csrf_token() }}'},
-                body: JSON.stringify({help_session_id: sessionId, message: msg})
-            });
-            document.getElementById('message-input').value = '';
-            fetchMessages();
+            
+            try {
+                await chatUtil.sendMessage('/help/messages', {
+                    help_session_id: sessionId, 
+                    message: msg
+                });
+                msgInput.value = '';
+                fetchMessages();
+            } catch (err) {
+                console.error('Error sending message:', err);
+                alert('Error sending message: ' + (err.message || err));
+            }
         });
     }
 });

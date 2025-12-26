@@ -12,10 +12,9 @@ use App\Http\Controllers\Admin\LandingPageController;
 
 use App\Models\Setting;
 
-Route::get('/', function () {
-    $settings = Setting::where('key', 'like', 'landing_%')->get()->keyBy('key');
-    return view('landing', compact('settings'));
-});
+use App\Http\Controllers\PublicController;
+
+Route::get('/', [PublicController::class, 'index'])->name('home');
 
 // AUTH
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -36,12 +35,14 @@ Route::post('/password/reset', [AuthController::class, 'resetPassword'])->name('
 // HELP / LIVE CHAT (User)
 Route::middleware('auth')->group(function () {
     Route::get('/help', [App\Http\Controllers\HelpController::class, 'index'])->name('help.index');
+    // Popup API (Must be before {id} wildcard)
+    Route::get('/help/active', [App\Http\Controllers\HelpController::class, 'active'])->name('help.active');
+    
     Route::post('/help/start', [App\Http\Controllers\HelpController::class, 'start'])->name('help.start');
     Route::get('/help/{id}', [App\Http\Controllers\HelpController::class, 'show'])->name('help.show');
     Route::get('/help/messages/{id}', [App\Http\Controllers\HelpController::class, 'messages'])->name('help.messages');
     Route::post('/help/messages', [App\Http\Controllers\HelpController::class, 'sendMessage'])->name('help.send');
-    // Popup API for user-side floating chat
-    Route::get('/help/active', [App\Http\Controllers\HelpController::class, 'active'])->name('help.active');
+    
     Route::post('/help/popup-send', [App\Http\Controllers\HelpController::class, 'popupSend'])->name('help.popup.send');
 });
 

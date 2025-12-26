@@ -30,15 +30,22 @@ class HelpController extends Controller
         return view('help.chat', ['session' => $session]);
     }
 
-    public function messages($id)
+    public function messages($id, Request $request)
     {
         $session = HelpSession::findOrFail($id);
         $this->authorizeUser($session);
-        return response()->json($session->messages()->with('user')->get());
+        
+        $query = $session->messages()->with('user');
+        
+        if ($request->has('last_id')) {
+            $query->where('id', '>', $request->last_id);
+        }
+        
+        return response()->json($query->get());
     }
 
     // Return active open session for current user with recent messages (for popup)
-    public function active()
+    public function active(Request $request)
     {
         $user = Auth::user();
         $session = HelpSession::where('user_id', $user->id)->where('status', 'open')->latest()->first();
@@ -46,7 +53,12 @@ class HelpController extends Controller
             return response()->json(['active' => false]);
         }
 
-        $messages = $session->messages()->with('user')->get();
+        $query = $session->messages()->with('user');
+        if ($request->has('last_id')) {
+            $query->where('id', '>', $request->last_id);
+        }
+
+        $messages = $query->get();
         return response()->json(['active' => true, 'session' => $session, 'messages' => $messages]);
     }
 

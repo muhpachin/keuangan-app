@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Keuangan')</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -58,7 +59,15 @@
         .sidebar img { max-width: 70px; max-height: 70px; }
 
     </style>
+    <link rel="stylesheet" href="{{ asset('css/chat.css') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f8f9fa; }
+        .body-no-scroll { overflow: hidden; }
+        .sidebar { width: 250px; height: 100vh; position: fixed; left: 0; top: 0; background: linear-gradient(to bottom, #007bff, #0056b3); color: white; padding-top: 20px; transition: transform 0.3s ease-in-out; z-index: 1051; display: flex; flex-direction: column; }
+    </style>
 </head>
+
 <body>
     <div class="loader-wrapper" id="loader">
         <div class="loader"></div>
@@ -197,7 +206,7 @@
                         <button id="help-popup-toggle" class="btn btn-sm btn-light">_</button>
                     </div>
                 </div>
-                <div class="card-body p-2" id="help-popup-body" style="height:220px; overflow:auto;">
+                <div class="card-body p-2 chat-popup-body" id="help-popup-body">
                     <div id="help-popup-messages"></div>
                 </div>
                 <div class="card-footer p-2">
@@ -222,7 +231,7 @@
                         <button id="admin-help-popup-toggle" class="btn btn-sm btn-light">_</button>
                     </div>
                 </div>
-                <div class="card-body p-2" id="admin-help-popup-body" style="height:300px; overflow:auto;">
+                <div class="card-body p-2 chat-popup-body" id="admin-help-popup-body">
                     <div id="admin-help-popup-messages"></div>
                 </div>
                 <div class="card-footer p-2">
@@ -339,191 +348,87 @@
                 }
             });
         });
+    </script>
 
-        // Chat popup logic (user)
+    <script src="{{ asset('js/chat.js') }}"></script>
+    <script>
+        // Chat popup logic
         @if(Auth::check() && !Auth::user()->isAdmin())
-        (function(){
-            let activeSession = null;
-            const popup = document.getElementById('help-popup');
-            const body = document.getElementById('help-popup-body');
-            const msgsEl = document.getElementById('help-popup-messages');
-            const input = document.getElementById('help-popup-input');
-            const sendBtn = document.getElementById('help-popup-send');
-            const toggleBtn = document.getElementById('help-popup-toggle');
-
-            // Toggle visibility
-            const toggleVisibilityBtn = document.getElementById('help-popup-toggle-visibility');
-            let popupVisible = true; // force true for testing
-            toggleVisibilityBtn.textContent = popupVisible ? '👁' : '🙈';
-
-            function renderMessages(list){
-                msgsEl.innerHTML = '';
-                list.forEach(m => {
-                    const div = document.createElement('div');
-                    div.style.marginBottom = '8px';
-                    div.innerHTML = '<strong>' + (m.user.name || m.user.username) + ':</strong> ' + (m.message) + '<br><small class="text-muted">' + new Date(m.created_at).toLocaleString() + '</small>';
-                    msgsEl.appendChild(div);
+            document.addEventListener('DOMContentLoaded', () => {
+                const poll = ChatPopup.init({
+                    activeUrl: '{{ route('help.active') }}',
+                    sendUrl: '{{ route('help.popup.send') }}',
+                    popupId: 'help-popup',
+                    bodyId: 'help-popup-body',
+                    msgsId: 'help-popup-messages',
+                    inputId: 'help-popup-input',
+                    sendBtnId: 'help-popup-send',
+                    toggleId: 'help-popup-toggle',
+                    toggleVisId: 'help-popup-toggle-visibility',
+                    storageKey: 'helpPopupVisible',
+                    isAdmin: false // User side
                 });
-                body.scrollTop = body.scrollHeight;
-            }
 
-            async function pollActive(){
-                try{
-                    const res = await fetch('{{ route('help.active') }}');
-                    const data = await res.json();
-                    console.log('Poll active data:', data);
-                    if (data.active){
-                        activeSession = data.session;
-                        renderMessages(data.messages);
-                        if (popupVisible) popup.style.display = 'block';
-                    } else {
-                        popup.style.display = 'none';
-                    }
-                }catch(e){console.error('help popup poll', e)}
-            }
+                // Polling interval
+                if(poll) setInterval(poll, 4000);
+                if(poll) poll();
 
-            sendBtn.addEventListener('click', async function(){
-                if (!activeSession) return;
-                const text = input.value.trim(); if (!text) return;
-                try {
-                    const res = await fetch('{{ route('help.popup.send') }}', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: JSON.stringify({help_session_id: activeSession.id, message: text})});
-                    if (!res.ok) {
-                        const error = await res.json();
-                        alert('Error: ' + (error.error || 'Failed to send message'));
-                        return;
-                    }
-                    input.value='';
-                    pollActive();
-                } catch (e) {
-                    console.error('Send message error:', e);
-                    alert('Failed to send message. Please try again.');
-                }
+                 // Notification check
+                let lastMessageCount = 0;
+                setInterval(async () => {
+                    const data = await poll(); 
+                    try {
+                        const res = await fetch('{{ route('help.active') }}');
+                        const ndata = await res.json();
+                        if (ndata.active && ndata.messages.length > lastMessageCount) {
+                             if(lastMessageCount !== 0) { 
+                                const toast = new bootstrap.Toast(document.getElementById('helpToast'));
+                                document.getElementById('helpToastMessage').textContent = 'Anda memiliki pesan baru di Get Help';
+                                toast.show();
+                             }
+                             lastMessageCount = ndata.messages.length;
+                        }
+                    } catch(e){}
+                }, 10000);
             });
-
-            toggleBtn.addEventListener('click', function(){
-                if (body.style.display === 'none') { body.style.display='block'; } else { body.style.display='none'; }
-            });
-
-            toggleVisibilityBtn.addEventListener('click', function(){
-                popupVisible = !popupVisible;
-                localStorage.setItem('helpPopupVisible', popupVisible);
-                popup.style.display = popupVisible && activeSession ? 'block' : 'none';
-                toggleVisibilityBtn.textContent = popupVisible ? '👁' : '🙈';
-            });
-
-            // poll every 4s
-            pollActive(); setInterval(pollActive, 4000);
-
-            // Notifikasi pesan baru
-            let lastMessageCount = 0;
-            setInterval(async () => {
-                try {
-                    const res = await fetch('{{ route('help.active') }}');
-                    const data = await res.json();
-                    if (data.active && data.messages.length > lastMessageCount) {
-                        const toast = new bootstrap.Toast(document.getElementById('helpToast'));
-                        document.getElementById('helpToastMessage').textContent = 'Anda memiliki pesan baru di Get Help';
-                        toast.show();
-                        lastMessageCount = data.messages.length;
-                    }
-                } catch (e) {
-                    console.error('Error checking new help messages:', e);
-                }
-            }, 10000); // cek setiap 10 detik
-        })();
         @endif
 
-        // Chat popup logic (admin)
         @if(Auth::check() && Auth::user()->isAdmin())
-        (function(){
-            let activeSession = null;
-            const popup = document.getElementById('admin-help-popup');
-            const body = document.getElementById('admin-help-popup-body');
-            const msgsEl = document.getElementById('admin-help-popup-messages');
-            const input = document.getElementById('admin-help-popup-input');
-            const sendBtn = document.getElementById('admin-help-popup-send');
-            const toggleBtn = document.getElementById('admin-help-popup-toggle');
-
-            // Toggle visibility
-            const toggleVisibilityBtn = document.getElementById('admin-help-popup-toggle-visibility');
-            let popupVisible = localStorage.getItem('adminHelpPopupVisible') !== 'false'; // default true
-            toggleVisibilityBtn.textContent = popupVisible ? '👁' : '🙈';
-
-            function renderMessages(list){
-                msgsEl.innerHTML = '';
-                list.forEach(m => {
-                    const div = document.createElement('div');
-                    div.style.marginBottom = '8px';
-                    div.innerHTML = '<strong>' + (m.user.name || m.user.username) + ':</strong> ' + (m.message) + '<br><small class="text-muted">' + new Date(m.created_at).toLocaleString() + '</small>';
-                    msgsEl.appendChild(div);
+            document.addEventListener('DOMContentLoaded', () => {
+                const poll = ChatPopup.init({
+                    activeUrl: '{{ route('admin.help.active') }}',
+                    sendUrl: '{{ route('admin.help.popup.send') }}',
+                    popupId: 'admin-help-popup',
+                    bodyId: 'admin-help-popup-body',
+                    msgsId: 'admin-help-popup-messages',
+                    inputId: 'admin-help-popup-input',
+                    sendBtnId: 'admin-help-popup-send',
+                    toggleId: 'admin-help-popup-toggle',
+                    toggleVisId: 'admin-help-popup-toggle-visibility',
+                    storageKey: 'adminHelpPopupVisible',
+                    isAdmin: true // Admin side
                 });
-                body.scrollTop = body.scrollHeight;
-            }
 
-            async function pollActive(){
-                try{
-                    const res = await fetch('{{ route('admin.help.active') }}');
-                    const data = await res.json();
-                    console.log('Admin poll active data:', data);
-                    if (data.active){
-                        activeSession = data.session;
-                        renderMessages(data.messages);
-                        if (popupVisible) popup.style.display = 'block';
-                    } else {
-                        popup.style.display = 'none';
-                    }
-                }catch(e){console.error('admin help popup poll', e)}
-            }
+                 if(poll) setInterval(poll, 4000);
+                 if(poll) poll();
 
-            sendBtn.addEventListener('click', async function(){
-                if (!activeSession) return;
-                const text = input.value.trim(); if (!text) return;
-                try {
-                    const res = await fetch('{{ route('admin.help.popup.send') }}', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: JSON.stringify({help_session_id: activeSession.id, message: text})});
-                    if (!res.ok) {
-                        const error = await res.json();
-                        alert('Error: ' + (error.error || 'Failed to send message'));
-                        return;
-                    }
-                    input.value='';
-                    pollActive();
-                } catch (e) {
-                    console.error('Send message error:', e);
-                    alert('Failed to send message. Please try again.');
-                }
+                 // Admin Notification
+                 let lastAdminMessageCount = 0;
+                 setInterval(async () => {
+                     try {
+                        const res = await fetch('{{ route('admin.help.active') }}');
+                        const data = await res.json();
+                        if (data.active && data.messages.length > lastAdminMessageCount) {
+                            if (lastAdminMessageCount !== 0) {
+                                const toast = new bootstrap.Toast(document.getElementById('adminHelpToast'));
+                                document.getElementById('adminHelpToastMessage').textContent = 'Ada pesan baru dari user di Help';
+                                toast.show();
+                            }
+                            lastAdminMessageCount = data.messages.length;
+                        }
+                    } catch(e){}
+                 }, 10000);
             });
-
-            toggleBtn.addEventListener('click', function(){
-                if (body.style.display === 'none') { body.style.display='block'; } else { body.style.display='none'; }
-            });
-
-            toggleVisibilityBtn.addEventListener('click', function(){
-                popupVisible = !popupVisible;
-                localStorage.setItem('adminHelpPopupVisible', popupVisible);
-                popup.style.display = popupVisible && activeSession ? 'block' : 'none';
-                toggleVisibilityBtn.textContent = popupVisible ? '👁' : '🙈';
-            });
-
-            // poll every 4s
-            pollActive(); setInterval(pollActive, 4000);
-
-            // Notifikasi pesan baru untuk admin
-            let lastAdminMessageCount = 0;
-            setInterval(async () => {
-                try {
-                    const res = await fetch('{{ route('admin.help.active') }}');
-                    const data = await res.json();
-                    if (data.active && data.messages.length > lastAdminMessageCount) {
-                        const toast = new bootstrap.Toast(document.getElementById('adminHelpToast'));
-                        document.getElementById('adminHelpToastMessage').textContent = 'Ada pesan baru dari user di Help';
-                        toast.show();
-                        lastAdminMessageCount = data.messages.length;
-                    }
-                } catch (e) {
-                    console.error('Error checking new admin help messages:', e);
-                }
-            }, 10000); // cek setiap 10 detik
-        })();
         @endif
 
         // Toggle button for help popup

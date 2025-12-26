@@ -53,6 +53,9 @@ class DashboardController extends Controller
             $tip = null;
         }
 
+        // Debug point before view
+        // dd('DEBUG: Data fetched, entering view', compact('totalPemasukan', 'totalPengeluaran', 'tip'));
+
         return view('dashboard.index', compact(
             'totalPemasukan', 'totalPengeluaran', 'rekeningList', 
             'totalSaldoBisaDipakai', 'saldoTunai', 'tip'
@@ -71,11 +74,11 @@ class DashboardController extends Controller
             DB::transaction(function() use ($request) {
                 $userId = Auth::id();
                 
-                // 1. Cari Rekening Sumber
-                $sumber = Rekening::where('user_id', $userId)->findOrFail($request->rekening_sumber_id);
+                // 1. Cari Rekening Sumber dan Lock Row
+                $sumber = Rekening::where('user_id', $userId)->lockForUpdate()->findOrFail($request->rekening_sumber_id);
                 
-                // 2. Cari Rekening Tujuan (Dompet Tunai)
-                $tujuan = Rekening::where('user_id', $userId)->where('tipe', 'TUNAI')->first();
+                // 2. Cari Rekening Tujuan (Dompet Tunai) dan Lock Row
+                $tujuan = Rekening::where('user_id', $userId)->where('tipe', 'TUNAI')->lockForUpdate()->first();
 
                 if(!$tujuan) {
                     throw new \Exception("Anda belum punya rekening tipe TUNAI (Dompet). Silakan buat di menu Rekening.");
@@ -92,8 +95,11 @@ class DashboardController extends Controller
                 }
 
                 // 5. Proses Tarik Tunai (Update Database)
-                $sumber->decrement('saldo', $request->jumlah_tarik);
-                $tujuan->increment('saldo', $request->jumlah_tarik);
+                $sumber->saldo -= $request->jumlah_tarik;
+                $sumber->save();
+
+                $tujuan->saldo += $request->jumlah_tarik;
+                $tujuan->save();
 
                 // 6. Catat History Transfer
                 Transfer::create([

@@ -42,7 +42,8 @@ class PengeluaranController extends Controller
 
         DB::transaction(function() use ($request) {
             $userId = Auth::id();
-            $rekening = Rekening::where('user_id', $userId)->find($request->rekening_id);
+            // Cek dan kunci rekening untuk update saldo aman
+            $rekening = Rekening::where('user_id', $userId)->lockForUpdate()->find($request->rekening_id);
 
             if (!$rekening) {
                 throw new \Exception('Rekening tidak ditemukan atau tidak valid.');
@@ -62,7 +63,8 @@ class PengeluaranController extends Controller
             ]);
 
             // Kurangi Saldo Rekening
-            $rekening->decrement('saldo', $request->jumlah);
+            $rekening->saldo -= $request->jumlah;
+            $rekening->save();
         });
 
         return back()->with('success', 'Pengeluaran berhasil dicatat.');
